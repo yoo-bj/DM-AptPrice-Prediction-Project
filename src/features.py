@@ -133,7 +133,7 @@ def add_features_unique(df, target_df, prefix, radius=1000,
 
 
 # ==========================================================================
-# 교통 변수 — 담당: A
+# 교통 변수 — 담당: 김채영
 # ==========================================================================
 
 def add_transport_features(df, subway_df=None, bus_df=None,
@@ -142,9 +142,9 @@ def add_transport_features(df, subway_df=None, bus_df=None,
     교통 접근성 변수 추가.
 
     추가 컬럼:
-        - subway_nearest_dist     : 최근접 지하철역 거리(m)
-        - subway_count_{r}m       : 반경 내 지하철역 개수
-        - bus_count_{r}m          : 반경 내 버스정류장 개수
+        - subway_nearest_dist       : 최근접 지하철역 거리(m)
+        - subway_count_{r}m         : 반경 내 지하철역 개수
+        - bus_nearest_dist          : 최근접 버스정류장 거리(m)
 
     Parameters
     ----------
@@ -155,10 +155,21 @@ def add_transport_features(df, subway_df=None, bus_df=None,
     bus_df : DataFrame, optional
         버스정류장 데이터 (None이면 스킵)
     """
+
     if subway_df is not None:
+        subway_df = subway_df.rename(columns={
+            '역위도': '위도',
+            '역경도': '경도'
+        })
         df = add_features_unique(df, subway_df, 'subway', radius=subway_radius)
+
     if bus_df is not None:
         df = add_features_unique(df, bus_df, 'bus', radius=bus_radius)
+
+        bus_count_col = f'bus_count_{bus_radius}m'
+        if bus_count_col in df.columns:
+            df = df.drop(columns=[bus_count_col])
+
     return df
 
 
