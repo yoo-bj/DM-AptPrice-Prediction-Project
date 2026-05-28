@@ -208,26 +208,48 @@ def add_convenience_features(df, mart_df=None, hospital_df=None,
 
 
 # ==========================================================================
-# 환경(부정) 변수 — 담당: D
+# 환경(부정) 변수 — 담당: 이재령
 # ==========================================================================
 
-def add_negative_features(df, funeral_df=None, incinerator_df=None,
-                          funeral_radius=2000, incinerator_radius=3000):
+def add_negative_features(df, entertainment_df=None, motel_df=None, radius=500):
     """
     환경 부정 요소 변수 추가.
 
-    추가 컬럼 (예시):
-        - funeral_nearest_dist
-        - incinerator_nearest_dist
+    유흥주점과 모텔을 '유해·유흥시설'로 통합하여 밀집도(카운트)를 계산한다.
 
-    TODO: 담당자가 실제 데이터 컬럼 구조 확인 후 구현
+    [변수 선택 근거]
+    - 가이드 권장 시설(장례식장)은 EDA 결과 가격과 무상관(상관 0.01)이라 제외.
+      장례식장의 69%가 병원 부설로 오히려 고가 지역에 분포해 부정 효과가 없었음.
+      병원 부설 제외 후 일반 장례식장만 봐도 상관 -0.007로 동일하게 무상관.
+    - 유흥주점(-0.148)과 모텔(-0.164)은 가격과 음의 상관이 뚜렷.
+    - 두 시설은 같은 유흥가에 공존하는 경향(상관 0.68)이 있어 통합.
+      합산 시 상관이 -0.167로 개별보다 강해져 단일 변수로 채택.
+    - 강남권(-0.215)/비강남권(-0.127) 모두에서 음의 상관 확인 (지역 착시 아님).
+    - 거리 변수는 카운트와 다중공선성(-0.39)이 있어 카운트만 사용.
+
+    추가 컬럼:
+        - vice_count_{radius}m : 반경 내 유흥주점+모텔 합산 개수
+
+    Parameters
+    ----------
+    df : DataFrame
+        실거래가 데이터 (위도/경도 컬럼 보유)
+    entertainment_df : DataFrame, optional
+        유흥주점 위치 데이터 (위도/경도 컬럼 보유)
+    motel_df : DataFrame, optional
+        모텔 위치 데이터 (위도/경도 컬럼 보유)
+    radius : int
+        카운트 반경 (미터, 기본 500)
     """
-    if funeral_df is not None:
-        df = add_features_unique(df, funeral_df, 'funeral', radius=funeral_radius)
-    if incinerator_df is not None:
-        df = add_features_unique(df, incinerator_df, 'incinerator', radius=incinerator_radius)
+    if entertainment_df is not None and motel_df is not None:
+        # 유흥주점 + 모텔 통합
+        vice_df = pd.concat([entertainment_df, motel_df], ignore_index=True)
+        df = add_features_unique(df, vice_df, 'vice', radius=radius)
+        # 거리 변수는 카운트와 다중공선성이 있어 제외
+        dist_col = 'vice_nearest_dist'
+        if dist_col in df.columns:
+            df = df.drop(columns=[dist_col])
     return df
-
 
 # ==========================================================================
 # 특수 변수 — 표준 패턴(거리/카운트)이 안 맞는 경우 여기에 추가
