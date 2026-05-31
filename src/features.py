@@ -163,49 +163,30 @@ def add_transport_features(df, subway_df=None, bus_df=None,
 
 
 # ==========================================================================
-# 교육 변수 — 담당: B
+# 교육 변수, 생활 편의 — 담당: 임종욱
 # ==========================================================================
 
-def add_education_features(df, school_df=None, academy_df=None,
-                           school_radius=1000, academy_radius=500):
+def add_infra_features(df, park_df=None, academy_df=None, hospital_df=None,
+                       park_radius=1000, academy_radius=500, hospital_radius=1500):
     """
-    교육 환경 변수 추가.
-
-    추가 컬럼 (예시 — 담당자가 자유롭게 조정):
-        - school_nearest_dist
-        - school_count_{r}m
-        - academy_count_{r}m
-
-    TODO: 담당자가 실제 데이터 컬럼 구조 확인 후 구현
+    추가 컬럼:
+        - park_count_{r}m       : 반경 내 공원 수
+        - academy_count_{r}m    : 반경 내 학원 수
+        - hospital_count_{r}m   : 반경 내 병원 수
     """
-    if school_df is not None:
-        df = add_features_unique(df, school_df, 'school', radius=school_radius)
+    # 1. 주변공원수 생성 (공용 헬퍼 add_features_unique 활용)
+    if park_df is not None:
+        df = add_features_unique(df, park_df, 'park', radius=park_radius)
+        
+    # 2. 주변학원수 생성
     if academy_df is not None:
         df = add_features_unique(df, academy_df, 'academy', radius=academy_radius)
-    return df
-
-
-# ==========================================================================
-# 생활편의 변수 — 담당: C
-# ==========================================================================
-
-def add_convenience_features(df, mart_df=None, hospital_df=None,
-                             mart_radius=1000, hospital_radius=1500):
-    """
-    생활편의 변수 추가.
-
-    추가 컬럼 (예시):
-        - mart_nearest_dist
-        - hospital_nearest_dist
-
-    TODO: 담당자가 실제 데이터 컬럼 구조 확인 후 구현
-    """
-    if mart_df is not None:
-        df = add_features_unique(df, mart_df, 'mart', radius=mart_radius)
+        
+    # 3. 주변병원수 생성
     if hospital_df is not None:
         df = add_features_unique(df, hospital_df, 'hospital', radius=hospital_radius)
+        
     return df
-
 
 # ==========================================================================
 # 환경(부정) 변수 — 담당: D
