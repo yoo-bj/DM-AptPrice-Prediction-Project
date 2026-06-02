@@ -88,47 +88,53 @@ def add_features(df, target_df, prefix, radius=1000,
 
 def add_features_unique(df, target_df, prefix, radius=1000,
                         key_cols=['단지명', '도로명'],
-                        lat_col='위도', lon_col='경도'):
+                        lat_col='위도', lon_col='경도',
+                        count_col_name=None,
+                        include_dist=True):
     """
-    add_features의 최적화 버전. 단지별로 중복 제거 후 계산하여 속도 개선.
-    실거래가는 같은 단지가 수십~수백 번 등장하므로 중복 계산 방지에 효과적.
-
     Parameters
     ----------
     df, target_df, prefix, radius, lat_col, lon_col : add_features와 동일
     key_cols : list of str
         단지 식별 컬럼 (기본: ['단지명', '도로명'])
+    count_col_name : str, optional
+        count 컬럼명 지정. None이면 기존 규약 {prefix}_count_{radius}m 사용
+    include_dist : bool, optional
+        False이면 최근접 거리 변수 생성 생략 (기본: True)
 
     Examples
     --------
     >>> df = add_features_unique(df, subway, 'subway', radius=500)
+    >>> df = add_features_unique(df, park, 'park', radius=1100,
+    ...                          count_col_name='주변공원수', include_dist=False)
     """
     dist_col = f'{prefix}_nearest_dist'
-    count_col = f'{prefix}_count_{radius}m'
+    count_col = count_col_name or f'{prefix}_count_{radius}m'
 
     # 단지별 중복 제거
     unique_apt = df[key_cols + ['위도', '경도']].drop_duplicates().reset_index(drop=True)
 
-    unique_apt[dist_col] = unique_apt.apply(
-        lambda row: nearest_distance(
-            row['위도'], row['경도'], target_df, lat_col=lat_col, lon_col=lon_col
-        ),
-        axis=1
-    )
+    if include_dist:
+        unique_apt[dist_col] = unique_apt.apply(
+            lambda row: nearest_distance(
+                row['위도'], row['경도'], target_df, lat_col=lat_col, lon_col=lon_col
+            ), axis=1
+        )
+
     unique_apt[count_col] = unique_apt.apply(
         lambda row: count_within_radius(
             row['위도'], row['경도'], target_df, radius=radius,
             lat_col=lat_col, lon_col=lon_col
-        ),
-        axis=1
+        ), axis=1
     )
 
+    merge_cols = key_cols + ([dist_col] if include_dist else []) + [count_col]
+    
     # 원본 데이터에 병합
-    df = df.merge(unique_apt[key_cols + [dist_col, count_col]],
-                  on=key_cols, how='left')
+    df = df.merge(unique_apt[merge_cols], on=key_cols, how='left')
 
-    print(f'[{prefix}] 변수 추가 완료 (고유 단지 {len(unique_apt)}개 기준): '
-          f'{dist_col}, {count_col}')
+    print(f'[{prefix}] 변수 추가 완료: '
+          f'{dist_col + ", " if include_dist else ""}{count_col}')
     return df
 
 
@@ -163,29 +169,45 @@ def add_transport_features(df, subway_df=None, bus_df=None,
 
 
 # ==========================================================================
-# 교육 변수, 생활 편의 — 담당: 임종욱
+# 인프라 변수 (교육/생활편의) — 담당: 임종욱
 # ==========================================================================
 
 def add_infra_features(df, park_df=None, academy_df=None, hospital_df=None,
-                       park_radius=1000, academy_radius=500, hospital_radius=1500):
+                       park_radius=1100, academy_radius=1100, hospital_radius=1100):
     """
+    교육 및 생활편의 인프라 변수 추가.
+
     추가 컬럼:
-        - park_count_{r}m       : 반경 내 공원 수
-        - academy_count_{r}m    : 반경 내 학원 수
-        - hospital_count_{r}m   : 반경 내 병원 수
+        - count_park_nearby     : 주변 공원 수
+        - count_academy_nearby  : 주변 학원 수
+        - count_hospital_nearby : 주변 병원 수
+
+    Parameters
+    ----------
+    df : DataFrame
+        실거래가 데이터
+    park_df : DataFrame, optional
+        공원 위치 데이터 (None이면 스킵)
+    academy_df : DataFrame, optional
+        학원 위치 데이터 (None이면 스킵)
+    hospital_df : DataFrame, optional
+        병원 위치 데이터 (None이면 스킵)
     """
-    # 1. 주변공원수 생성 (공용 헬퍼 add_features_unique 활용)
+    # 공원 변수 생성
     if park_df is not None:
-        df = add_features_unique(df, park_df, 'park', radius=park_radius)
-        
-    # 2. 주변학원수 생성
+        df = add_features_unique(df, park_df, 'park', radius=park_radius,
+                                 count_col_name='count_park_nearby', include_dist=False)
+
+    # 학원 변수 생성
     if academy_df is not None:
-        df = add_features_unique(df, academy_df, 'academy', radius=academy_radius)
-        
-    # 3. 주변병원수 생성
+        df = add_features_unique(df, academy_df, 'academy', radius=academy_radius,
+                                 count_col_name='count_academy_nearby', include_dist=False)
+
+    # 병원 변수 생성
     if hospital_df is not None:
-        df = add_features_unique(df, hospital_df, 'hospital', radius=hospital_radius)
-        
+        df = add_features_unique(df, hospital_df, 'hospital', radius=hospital_radius,
+                                 count_col_name='count_hospital_nearby', include_dist=False)
+
     return df
 
 # ==========================================================================
@@ -240,11 +262,7 @@ def add_negative_features(df, entertainment_df=None, motel_df=None, radius=500):
     radius : int
         카운트 반경 (미터, 기본 500)
     """
-
     if entertainment_df is not None and motel_df is not None:
-        entertainment_df = entertainment_df[['위도', '경도']].dropna()
-        motel_df = motel_df[['위도', '경도']].dropna()
-
         vice_df = pd.concat([entertainment_df, motel_df], ignore_index=True)
         df = add_features_unique(df, vice_df, 'vice', radius=radius)
         if 'vice_nearest_dist' in df.columns:
