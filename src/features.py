@@ -163,51 +163,30 @@ def add_transport_features(df, subway_df=None, bus_df=None,
 
 
 # ==========================================================================
-# 인프라 변수 (교육/생활편의) — 담당: 임종욱
+# 교육 변수, 생활 편의 — 담당: 임종욱
 # ==========================================================================
 
 def add_infra_features(df, park_df=None, academy_df=None, hospital_df=None,
                        park_radius=1000, academy_radius=500, hospital_radius=1500):
     """
-    교육 및 생활편의 인프라 변수 추가.
-
     추가 컬럼:
-        - park_nearest_dist       : 최근접 공원까지 거리(m)
-        - park_count_{r}m         : 반경 내 공원 수
-        - academy_nearest_dist    : 최근접 학원까지 거리(m)
-        - academy_count_{r}m      : 반경 내 학원 수
-        - hospital_nearest_dist   : 최근접 병원까지 거리(m)
-        - hospital_count_{r}m     : 반경 내 병원 수
-
-    Parameters
-    ----------
-    df : DataFrame
-        실거래가 데이터
-    park_df : DataFrame, optional
-        공원 위치 데이터 (None이면 스킵)
-    academy_df : DataFrame, optional
-        학원 위치 데이터 (None이면 스킵)
-    hospital_df : DataFrame, optional
-        병원 위치 데이터 (None이면 스킵)
+        - park_count_{r}m       : 반경 내 공원 수
+        - academy_count_{r}m    : 반경 내 학원 수
+        - hospital_count_{r}m   : 반경 내 병원 수
     """
-    # 공원 변수 생성
+    # 1. 주변공원수 생성 (공용 헬퍼 add_features_unique 활용)
     if park_df is not None:
         df = add_features_unique(df, park_df, 'park', radius=park_radius)
-
-    # 학원 변수 생성
+        
+    # 2. 주변학원수 생성
     if academy_df is not None:
         df = add_features_unique(df, academy_df, 'academy', radius=academy_radius)
-
-    # 병원 변수 생성
+        
+    # 3. 주변병원수 생성
     if hospital_df is not None:
         df = add_features_unique(df, hospital_df, 'hospital', radius=hospital_radius)
-
+        
     return df
-
-
-# ==========================================================================
-# 환경(부정) 변수 — 담당: 이재령
-# ==========================================================================
 
 # ==========================================================================
 # 환경(부정) 변수 — 담당: 이재령
@@ -261,7 +240,11 @@ def add_negative_features(df, entertainment_df=None, motel_df=None, radius=500):
     radius : int
         카운트 반경 (미터, 기본 500)
     """
+
     if entertainment_df is not None and motel_df is not None:
+        entertainment_df = entertainment_df[['위도', '경도']].dropna()
+        motel_df = motel_df[['위도', '경도']].dropna()
+
         vice_df = pd.concat([entertainment_df, motel_df], ignore_index=True)
         df = add_features_unique(df, vice_df, 'vice', radius=radius)
         if 'vice_nearest_dist' in df.columns:
