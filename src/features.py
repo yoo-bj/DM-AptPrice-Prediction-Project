@@ -225,7 +225,6 @@ def add_negative_features(df, entertainment_df=None, motel_df=None, radius=500):
     - 공공데이터포털 행정안전부 인허가 정보
       · 식품_유흥주점영업 (영업중 1,652건)
       · 문화_숙박업 (모텔/여관급만, 영업중 1,856건)
-    - 도로명주소 기반 카카오 지오코딩으로 WGS84 좌표 변환
 
     [변수 선택 근거]
     1) 후보 검토 및 탈락
@@ -268,15 +267,3 @@ def add_negative_features(df, entertainment_df=None, motel_df=None, radius=500):
         if 'vice_nearest_dist' in df.columns:
             df = df.drop(columns=['vice_nearest_dist'])
     return df
-
-
-
-# ==========================================================================
-# 특수 변수 — 표준 패턴(거리/카운트)이 안 맞는 경우 여기에 추가
-# ==========================================================================
-
-# 예: 학교 종류별 카운트, 특정 노선 지하철 거리 등
-# def add_school_by_level(df, school_df):
-#     """초/중/고 종류별 카운트 같은 특수 변수"""
-#     ...
-#     return df
